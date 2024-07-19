@@ -1,20 +1,21 @@
 name: FlorisBoard CI
 
 on:
-  push:
-    branches: [ master ]
-    paths-ignore:
-      - ".github/ISSUE_TEMPLATE/**"
-      - ".github/FUNDING.yml"
-      - ".editorconfig"
-      - "fastlane/**"
-      - "CONTRIBUTING.md"
-      - "CODE_OF_CONDUCT.md"
-      - "LICENSE"
-      - "README.md"
-      - "ROADMAP.md"
-  pull_request:
-    branches: [ master ]
+  workflow_dispatch:
+#  push:
+#    branches: [ master ]
+#    paths-ignore:
+#      - ".github/ISSUE_TEMPLATE/**"
+#      - ".github/FUNDING.yml"
+#      - ".editorconfig"
+#      - "fastlane/**"
+#      - "CONTRIBUTING.md"
+#      - "CODE_OF_CONDUCT.md"
+#      - "LICENSE"
+#      - "README.md"
+#      - "ROADMAP.md"
+#  pull_request:
+#    branches: [ master ]
 
 jobs:
   build:
@@ -37,8 +38,20 @@ jobs:
       - name: Build with Gradle
         # MUST call gradlew separately because of an OSS license plugin issue.
         # See https://github.com/google/play-services-plugins/issues/199
-        run: ./gradlew clean && ./gradlew assembleDebug
+        run: ./gradlew clean && ./gradlew assemble${{ vars.BUILD_TYPE }}
+      - name: Sign & Zip align
+        uses: kevin-david/zipalign-sign-android-release@v1.1
+        id: sign_app
+        with:
+          releaseDirectory: app/build/outputs/apk/${{ vars.BUILD_TYPE_DOWN }}
+          signingKeyBase64: ${{ secrets.SIGNING_KEY }}
+          alias: ${{ secrets.ALIAS }}
+          keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
+          keyPassword: ${{ secrets.KEY_PASSWORD }}
+          zipAlign: true
+        env:
+          BUILD_TOOLS_VERSION: "34.0.0"
       - uses: actions/upload-artifact@v3
         with:
-          name: app-debug.apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: app.apk
+          path: ${{steps.sign_app.outputs.signedReleaseFile}}
